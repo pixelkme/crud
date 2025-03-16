@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Live Result</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            margin-left: 20px;
+            margin-right:20px;
+            padding: 10px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .live-section, .result-section {
+            margin-bottom: 30px;
+        }
+        .live-section h2, .result-section h2 {
+            color: #555;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            padding: 10px;
+            border-collapse: collapse;
+            margin-top: 10px;
+            table-layout: fixed; /* Ensure equal column widths */
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .holiday-section {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+            color: #856404;
+        }
+        .date-display, .live-2d-display, .server-time {
+            margin-top: 10px;
+            font-size: 15px; /* Increased font size for 2D result */
+            color: #555;
+            text-align: center;
+            font-weight: bold; /* Optional: Make it bold */
+        }
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 25px;
+            }
+            th, td {
+                padding: 8px;
+                font-size: 14px;
+            }
+            .live-section h2, .result-section h2 {
+                font-size: 25px;
+            }
+            .live-2d-display {
+                font-size: 40px; /* Increased font size for 2D result */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>2D Live Result</h1>
+
+        <!-- Live Data Section -->
+        <div class="live-section">
+            <div class="live-2d-display" id="live2dDisplay"></div>
+            <div class="server-time">
+                <p><strong>♻️:</strong> <span id="serverTime"></span></p>
+            </div>
+            <table id="liveTable">
+                <thead>
+                    <tr>
+                        <th style="width: 50%;">Set</th> <!-- Equal width for Set -->
+                        <th style="width: 50%;">Value</th> <!-- Equal width for Value -->
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Live data will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Historical Results Section -->
+        <div class="result-section">
+            <div class="date-display" id="historicalDate"></div>
+            <table id="resultTable">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Set</th>
+                        <th>Value</th>
+                        <th>2D</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Historical data will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Holiday Section -->
+        <div class="holiday-section" id="holidaySection">
+            <!-- Holiday data will be inserted here by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        // API URL
+        const apiUrl = 'https://api.thaistock2d.com/live';
+
+        // Function to convert 24-hour time to 12-hour format with AM/PM
+        function formatTime(time) {
+            const [hour, minute] = time.split(':');
+            let period = 'AM';
+            let formattedHour = parseInt(hour, 10);
+
+            if (formattedHour >= 12) {
+                period = 'PM';
+                if (formattedHour > 12) {
+                    formattedHour -= 12;
+                }
+            } else if (formattedHour === 0) {
+                formattedHour = 12;
+            }
+
+            return `${formattedHour}:${minute} ${period}`;
+        }
+
+        // Function to fetch data from the API
+        async function fetchData() {
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                displayData(data);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        // Function to display server time
+        function displayServerTime(serverTime) {
+            const serverTimeElement = document.getElementById('serverTime');
+            const formattedTime = formatTime(serverTime.split(' ')[1]);
+            serverTimeElement.textContent = `${serverTime.split(' ')[0]} ${formattedTime}`;
+        }
+
+        // Function to display live data
+        function displayLiveData(liveData) {
+            const tbody = document.querySelector('#liveTable tbody');
+            const live2dDisplay = document.getElementById('live2dDisplay');
+            tbody.innerHTML = ''; // Clear existing data
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${liveData.set}</td>
+                <td>${liveData.value}</td>
+            `;
+            tbody.appendChild(row);
+
+            // Display 2D value outside the table
+            live2dDisplay.textContent = `2D: ${liveData.twod}`;
+        }
+
+        // Function to display historical results
+        function displayResultData(resultData) {
+            const tbody = document.querySelector('#resultTable tbody');
+            const historicalDateElement = document.getElementById('historicalDate');
+            tbody.innerHTML = ''; // Clear existing data
+
+            if (resultData.length > 0) {
+                historicalDateElement.textContent = `Date: ${resultData[0].stock_date}`;
+            }
+
+            resultData.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${formatTime(item.open_time)}</td>
+                    <td>${item.set}</td>
+                    <td>${item.value}</td>
+                    <td>${item.twod}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Function to display holiday data
+        function displayHolidayData(holidayData) {
+            const holidaySection = document.getElementById('holidaySection');
+            if (holidayData.status === "3") {
+                holidaySection.innerHTML = `
+                    <p>Today is a holiday: <strong>${holidayData.name}</strong> (${holidayData.date})</p>
+                `;
+            } else {
+                holidaySection.innerHTML = `<p>No holiday today.</p>`;
+            }
+        }
+
+        // Function to display all data
+        function displayData(data) {
+            displayServerTime(data.server_time);
+            displayLiveData(data.live);
+            displayResultData(data.result);
+            displayHolidayData(data.holiday);
+        }
+
+        // Fetch data when the page loads
+        fetchData();
+
+        // Refresh data every 1 second
+        setInterval(fetchData, 1000);
+    </script>
+</body>
+</html>
